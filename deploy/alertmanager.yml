@@ -1,0 +1,16 @@
+route:
+  receiver: crm-internal-webhook
+  group_by: [alertname]
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+
+receivers:
+  - name: crm-internal-webhook
+    webhook_configs:
+      - url: http://api:8787/internal/alerts
+        send_resolved: true
+        http_config:
+          authorization:
+            type: Bearer
+            credentials_file: /run/secrets/metrics_token

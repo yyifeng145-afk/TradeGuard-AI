@@ -1,0 +1,48 @@
+groups:
+  - name: crm-production
+    rules:
+      - alert: CRMApiMetricsDown
+        expr: up{job="crm-api"} == 0
+        for: 2m
+        labels: { severity: critical }
+        annotations: { summary: "CRM API or database metrics unavailable" }
+      - alert: CRMDatabaseUnhealthy
+        expr: crm_database_healthy == 0
+        for: 1m
+        labels: { severity: critical }
+        annotations: { summary: "CRM database health check failed" }
+      - alert: CRMApplicationErrors
+        expr: increase(crm_http_5xx_total[5m]) > 5
+        for: 1m
+        labels: { severity: warning }
+        annotations: { summary: "CRM application returned more than five 5xx responses in five minutes" }
+      - alert: CRMWorkerHeartbeatStale
+        expr: crm_worker_heartbeat_age_seconds > 60
+        for: 2m
+        labels: { severity: critical }
+        annotations: { summary: "CRM Worker heartbeat is stale" }
+      - alert: CRMAgentQueueBacklog
+        expr: crm_agent_jobs_pending > 20
+        for: 10m
+        labels: { severity: warning }
+        annotations: { summary: "CRM Agent queue backlog is growing" }
+      - alert: CRMFailedJobs
+        expr: crm_agent_jobs_failed > 0
+        for: 1m
+        labels: { severity: warning }
+        annotations: { summary: "CRM has failed Agent jobs" }
+      - alert: CRMNotificationDeliveryProblem
+        expr: crm_notification_problems > 0
+        for: 2m
+        labels: { severity: warning }
+        annotations: { summary: "CRM internal notifications require attention" }
+      - alert: CRMStorageLow
+        expr: crm_storage_free_bytes / crm_storage_total_bytes < 0.10
+        for: 5m
+        labels: { severity: critical }
+        annotations: { summary: "CRM database filesystem has less than 10% free space" }
+      - alert: CRMOrderAtRisk
+        expr: crm_orders_at_risk > 0
+        for: 15m
+        labels: { severity: warning }
+        annotations: { summary: "CRM has orders marked at risk" }

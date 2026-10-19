@@ -1,0 +1,13 @@
+services:
+  offsite-backup:
+    image: rclone/rclone:1.72
+    command: ["copy", "/backups", "${RCLONE_REMOTE:?Set an encrypted offsite rclone destination}", "--min-age", "1m", "--checksum", "--log-level", "INFO"]
+    volumes:
+      - crm_prod_backups:/backups:ro
+      - ${RCLONE_CONFIG_FILE:?Set RCLONE_CONFIG_FILE}:/config/rclone/rclone.conf:ro
+  offsite-verify:
+    image: rclone/rclone:1.72
+    command: ["check", "/backups", "${RCLONE_REMOTE:?Set an encrypted offsite rclone destination}", "--download", "--one-way", "--log-level", "INFO"]
+    volumes:
+      - crm_prod_backups:/backups:ro
+      - ${RCLONE_CONFIG_FILE:?Set RCLONE_CONFIG_FILE}:/config/rclone/rclone.conf:ro

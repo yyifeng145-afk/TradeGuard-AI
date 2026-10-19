@@ -1,0 +1,70 @@
+.chat-message.agent-result {
+  max-width: 94%;
+  margin-left: 22px;
+}
+
+.agent-result-bubble {
+  width: 100%;
+  padding: 11px 12px;
+  color: #48616e;
+  background: #f5f9ff;
+  border: 1px solid #dce8f3;
+  border-left: 3px solid #5c9fc9;
+  border-radius: 10px;
+}
+
+.agent-result-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.agent-result-head > span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #427d9f;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.agent-result-head .status {
+  padding: 4px 7px;
+  font-size: 9px;
+}
+
+.agent-result-bubble p {
+  margin: 9px 0 7px;
+  color: #4d6572;
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.agent-result-note {
+  color: #93a7b2;
+  font-size: 9px;
+}
+
+.agent-result-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 9px;
+}
+
+.agent-result-actions button {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 0;
+  color: #278d9c;
+  font-size: 9px;
+  font-weight: 800;
+  background: transparent;
+  border: 0;
+}
+
+.agent-result-actions button:hover {
+  text-decoration: underline;
+}

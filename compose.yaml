@@ -1,0 +1,45 @@
+services:
+  api:
+    build: .
+    ports:
+      - "127.0.0.1:8787:8787"
+    environment:
+      HOST: 0.0.0.0
+      PORT: 8787
+      WORKER_ENABLED: "false"
+      CRM_DB_PATH: /app/data/crm.db
+      MODEL_BASE_URL: ${MODEL_BASE_URL:-}
+      MODEL_API_KEY: ${MODEL_API_KEY:-}
+      MODEL_NAME: ${MODEL_NAME:-}
+      WEKNORA_BASE_URL: ${WEKNORA_BASE_URL:-}
+      WEKNORA_API_KEY: ${WEKNORA_API_KEY:-}
+      WEKNORA_KNOWLEDGE_BASE_MAP: ${WEKNORA_KNOWLEDGE_BASE_MAP:-{}}
+      LANGFUSE_BASE_URL: ${LANGFUSE_BASE_URL:-}
+      LANGFUSE_PUBLIC_KEY: ${LANGFUSE_PUBLIC_KEY:-}
+      LANGFUSE_SECRET_KEY: ${LANGFUSE_SECRET_KEY:-}
+      MEM0_SYNC_ENABLED: ${MEM0_SYNC_ENABLED:-false}
+      MEM0_API_KEY: ${MEM0_API_KEY:-}
+    volumes:
+      - crm_data:/app/data
+    restart: unless-stopped
+  worker:
+    build: .
+    command: ["pnpm", "worker"]
+    environment:
+      CRM_DB_PATH: /app/data/crm.db
+      MODEL_BASE_URL: ${MODEL_BASE_URL:-}
+      MODEL_API_KEY: ${MODEL_API_KEY:-}
+      MODEL_NAME: ${MODEL_NAME:-}
+      WEKNORA_BASE_URL: ${WEKNORA_BASE_URL:-}
+      WEKNORA_API_KEY: ${WEKNORA_API_KEY:-}
+      WEKNORA_KNOWLEDGE_BASE_MAP: ${WEKNORA_KNOWLEDGE_BASE_MAP:-{}}
+      LANGFUSE_BASE_URL: ${LANGFUSE_BASE_URL:-}
+      LANGFUSE_PUBLIC_KEY: ${LANGFUSE_PUBLIC_KEY:-}
+      LANGFUSE_SECRET_KEY: ${LANGFUSE_SECRET_KEY:-}
+      MEM0_SYNC_ENABLED: ${MEM0_SYNC_ENABLED:-false}
+      MEM0_API_KEY: ${MEM0_API_KEY:-}
+    volumes:
+      - crm_data:/app/data
+    restart: unless-stopped
+volumes:
+  crm_data:

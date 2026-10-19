@@ -1,0 +1,148 @@
+services:
+  api:
+    build: .
+    ports:
+      - "127.0.0.1:8788:8787"
+    environment:
+      APP_ENV: production
+      HOST: 0.0.0.0
+      PORT: 8787
+      WORKER_ENABLED: "false"
+      CRM_DB_PATH: /app/data/crm.db
+      CRM_BACKUP_DIR: /app/backups
+      CRM_PUBLIC_URL: ${CRM_PUBLIC_URL:?Set an HTTPS CRM_PUBLIC_URL}
+      CRM_TRUSTED_PROXY_CIDRS: ${CRM_TRUSTED_PROXY_CIDRS:-172.30.0.10/32}
+      MODEL_BASE_URL: ${MODEL_BASE_URL:?Set MODEL_BASE_URL}
+      MODEL_API_KEY_FILE: /run/secrets/model_api_key
+      MODEL_NAME: ${MODEL_NAME:?Set MODEL_NAME}
+      FEISHU_BOT_WEBHOOK_FILE: /run/secrets/feishu_bot_webhook
+      FEISHU_BOT_SECRET_FILE: /run/secrets/feishu_bot_secret
+      CRM_METRICS_TOKEN_FILE: /run/secrets/metrics_token
+      WEKNORA_BASE_URL: ${WEKNORA_BASE_URL:-}
+      WEKNORA_API_KEY: ${WEKNORA_API_KEY:-}
+      WEKNORA_KNOWLEDGE_BASE_MAP: ${WEKNORA_KNOWLEDGE_BASE_MAP:-{}}
+      LANGFUSE_BASE_URL: ${LANGFUSE_BASE_URL:-}
+      LANGFUSE_PUBLIC_KEY: ${LANGFUSE_PUBLIC_KEY:-}
+      LANGFUSE_SECRET_KEY: ${LANGFUSE_SECRET_KEY:-}
+      MEM0_SYNC_ENABLED: ${MEM0_SYNC_ENABLED:-false}
+      MEM0_API_KEY: ${MEM0_API_KEY:-}
+    volumes:
+      - crm_prod_data:/app/data
+      - crm_prod_backups:/app/backups
+    secrets: [model_api_key, feishu_bot_webhook, feishu_bot_secret, metrics_token]
+    networks: [crm_prod]
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8787/api/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options: { max-size: "20m", max-file: "10" }
+    security_opt:
+      - no-new-privileges:true
+  worker:
+    build: .
+    command: ["pnpm", "worker"]
+    environment:
+      APP_ENV: production
+      CRM_DB_PATH: /app/data/crm.db
+      CRM_BACKUP_DIR: /app/backups
+      CRM_PUBLIC_URL: ${CRM_PUBLIC_URL:?Set an HTTPS CRM_PUBLIC_URL}
+      CRM_TRUSTED_PROXY_CIDRS: ${CRM_TRUSTED_PROXY_CIDRS:-172.30.0.10/32}
+      MODEL_BASE_URL: ${MODEL_BASE_URL:?Set MODEL_BASE_URL}
+      MODEL_API_KEY_FILE: /run/secrets/model_api_key
+      MODEL_NAME: ${MODEL_NAME:?Set MODEL_NAME}
+      FEISHU_BOT_WEBHOOK_FILE: /run/secrets/feishu_bot_webhook
+      FEISHU_BOT_SECRET_FILE: /run/secrets/feishu_bot_secret
+      CRM_METRICS_TOKEN_FILE: /run/secrets/metrics_token
+      WEKNORA_BASE_URL: ${WEKNORA_BASE_URL:-}
+      WEKNORA_API_KEY: ${WEKNORA_API_KEY:-}
+      WEKNORA_KNOWLEDGE_BASE_MAP: ${WEKNORA_KNOWLEDGE_BASE_MAP:-{}}
+      LANGFUSE_BASE_URL: ${LANGFUSE_BASE_URL:-}
+      LANGFUSE_PUBLIC_KEY: ${LANGFUSE_PUBLIC_KEY:-}
+      LANGFUSE_SECRET_KEY: ${LANGFUSE_SECRET_KEY:-}
+      MEM0_SYNC_ENABLED: ${MEM0_SYNC_ENABLED:-false}
+      MEM0_API_KEY: ${MEM0_API_KEY:-}
+    volumes:
+      - crm_prod_data:/app/data
+      - crm_prod_backups:/app/backups
+    secrets: [model_api_key, feishu_bot_webhook, feishu_bot_secret, metrics_token]
+    networks: [crm_prod]
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options: { max-size: "20m", max-file: "10" }
+    security_opt:
+      - no-new-privileges:true
+  caddy:
+    image: caddy:2.10-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      CRM_DOMAIN: ${CRM_DOMAIN:?Set the production domain without https://}
+      ACME_EMAIL: ${ACME_EMAIL:?Set the ACME account email}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+      - caddy_logs:/var/log/caddy
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      crm_prod:
+        ipv4_address: 172.30.0.10
+  prometheus:
+    image: prom/prometheus:v3.7.3
+    command: ["--config.file=/etc/prometheus/prometheus.yml", "--storage.tsdb.retention.time=30d"]
+    volumes:
+      - ./deploy/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./deploy/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - prometheus_data:/prometheus
+    secrets: [metrics_token]
+    depends_on: [api, alertmanager]
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    networks: [crm_prod]
+  alertmanager:
+    image: prom/alertmanager:v0.28.1
+    command: ["--config.file=/etc/alertmanager/alertmanager.yml"]
+    volumes:
+      - ./deploy/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - alertmanager_data:/alertmanager
+    secrets: [metrics_token]
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    networks: [crm_prod]
+volumes:
+  crm_prod_data:
+  crm_prod_backups:
+  caddy_data:
+  caddy_config:
+  caddy_logs:
+  prometheus_data:
+  alertmanager_data:
+secrets:
+  model_api_key:
+    file: ${MODEL_API_KEY_SECRET_FILE:?Set MODEL_API_KEY_SECRET_FILE}
+  feishu_bot_webhook:
+    file: ${FEISHU_BOT_WEBHOOK_SECRET_FILE:?Set FEISHU_BOT_WEBHOOK_SECRET_FILE}
+  feishu_bot_secret:
+    file: ${FEISHU_BOT_SECRET_FILE:?Set FEISHU_BOT_SECRET_FILE}
+  metrics_token:
+    file: ${CRM_METRICS_TOKEN_SECRET_FILE:?Set CRM_METRICS_TOKEN_SECRET_FILE}
+networks:
+  crm_prod:
+    ipam:
+      config:
+        - subnet: 172.30.0.0/24
