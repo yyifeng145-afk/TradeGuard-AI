@@ -91,10 +91,3 @@ docker compose up --build
 ## 与参考架构的差异
 
 现阶段不是参考架构的 1:1 全量复刻。前端为 React + Vite；Agent 使用确定性状态机与模型抽取，未采用 Pi Agent Core 通用循环；开发模式仍用 Web 演示会话。项目已吸收共享领域授权、Mem0 分层召回与知识版本/内容指纹复核等做法，但没有为了简历凑满 18 个工具。生产试运行模式的飞书机器人只发内部通知，客户询价由销售人工录入，正式报价由销售在已有渠道手动交付并登记。Mem0、WeKnora、Langfuse 均是可选适配器，未经真实账号联调不能称为生产集成已验证。
-
-## 参考资料
-
-- [用户提供的飞书文档](https://kcnjsi69cjvj.feishu.cn/wiki/DNBAwIDMViIdkJkGryqcO9YUnab)
-- [WeKnora 知识检索 API](https://github.com/Tencent/WeKnora/blob/main/docs/api/knowledge-search.md)
-- [Mem0 Platform Quickstart](https://docs.mem0.ai/platform/quickstart)
-- [Langfuse Observability](https://langfuse.com/docs/observability/get-started)
