@@ -1,32 +1,51 @@
 services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-tradeguard}
+      POSTGRES_USER: ${POSTGRES_USER:-crm_app}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-local-development-only}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./deploy/postgres/init:/docker-entrypoint-initdb.d:ro
+    ports: ["127.0.0.1:5432:5432"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+  redis:
+    image: redis:8-alpine
+    command: ["redis-server", "--appendonly", "yes", "--appendfsync", "everysec"]
+    volumes: [redis_data:/data]
+    ports: ["127.0.0.1:6379:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
   api:
     build: .
-    ports:
-      - "127.0.0.1:8787:8787"
+    ports: ["127.0.0.1:8787:8787"]
     environment:
       HOST: 0.0.0.0
       PORT: 8787
       WORKER_ENABLED: "false"
-      CRM_DB_PATH: /app/data/crm.db
+      DATABASE_URL: postgresql://${POSTGRES_USER:-crm_app}:${POSTGRES_PASSWORD:-local-development-only}@postgres:5432/${POSTGRES_DB:-tradeguard}
+      REDIS_URL: redis://redis:6379/0
       MODEL_BASE_URL: ${MODEL_BASE_URL:-}
       MODEL_API_KEY: ${MODEL_API_KEY:-}
       MODEL_NAME: ${MODEL_NAME:-}
-      WEKNORA_BASE_URL: ${WEKNORA_BASE_URL:-}
-      WEKNORA_API_KEY: ${WEKNORA_API_KEY:-}
-      WEKNORA_KNOWLEDGE_BASE_MAP: ${WEKNORA_KNOWLEDGE_BASE_MAP:-{}}
-      LANGFUSE_BASE_URL: ${LANGFUSE_BASE_URL:-}
-      LANGFUSE_PUBLIC_KEY: ${LANGFUSE_PUBLIC_KEY:-}
-      LANGFUSE_SECRET_KEY: ${LANGFUSE_SECRET_KEY:-}
-      MEM0_SYNC_ENABLED: ${MEM0_SYNC_ENABLED:-false}
-      MEM0_API_KEY: ${MEM0_API_KEY:-}
-    volumes:
-      - crm_data:/app/data
-    restart: unless-stopped
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
   worker:
     build: .
     command: ["pnpm", "worker"]
     environment:
-      CRM_DB_PATH: /app/data/crm.db
+      DATABASE_URL: postgresql://${POSTGRES_USER:-crm_app}:${POSTGRES_PASSWORD:-local-development-only}@postgres:5432/${POSTGRES_DB:-tradeguard}
+      REDIS_URL: redis://redis:6379/0
+      WORKER_CONCURRENCY: ${WORKER_CONCURRENCY:-4}
       MODEL_BASE_URL: ${MODEL_BASE_URL:-}
       MODEL_API_KEY: ${MODEL_API_KEY:-}
       MODEL_NAME: ${MODEL_NAME:-}
@@ -38,8 +57,12 @@ services:
       LANGFUSE_SECRET_KEY: ${LANGFUSE_SECRET_KEY:-}
       MEM0_SYNC_ENABLED: ${MEM0_SYNC_ENABLED:-false}
       MEM0_API_KEY: ${MEM0_API_KEY:-}
-    volumes:
-      - crm_data:/app/data
-    restart: unless-stopped
+      FEISHU_BOT_WEBHOOK: ${FEISHU_BOT_WEBHOOK:-}
+      FEISHU_BOT_SECRET: ${FEISHU_BOT_SECRET:-}
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+
 volumes:
-  crm_data:
+  postgres_data:
+  redis_data:

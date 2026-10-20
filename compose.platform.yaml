@@ -1,0 +1,48 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-tradeguard}
+      POSTGRES_USER: ${POSTGRES_USER:-crm_app}
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+    secrets: [postgres_password]
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+    networks: [crm_data]
+    security_opt: ["no-new-privileges:true"]
+
+  redis:
+    image: redis:8-alpine
+    command: ["sh", "-c", "exec redis-server --appendonly yes --appendfsync everysec --requirepass \"$$(cat /run/secrets/redis_password)\""]
+    secrets: [redis_password]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$$(cat /run/secrets/redis_password)\" ping | grep PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+    networks: [crm_data]
+    security_opt: ["no-new-privileges:true"]
+
+volumes:
+  postgres_data:
+  redis_data:
+
+secrets:
+  postgres_password:
+    file: ${POSTGRES_PASSWORD_SECRET_FILE:?Set POSTGRES_PASSWORD_SECRET_FILE}
+  redis_password:
+    file: ${REDIS_PASSWORD_SECRET_FILE:?Set REDIS_PASSWORD_SECRET_FILE}
+
+networks:
+  crm_data:
+    internal: true
+

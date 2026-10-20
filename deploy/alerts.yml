@@ -22,7 +22,7 @@ groups:
         labels: { severity: critical }
         annotations: { summary: "CRM Worker heartbeat is stale" }
       - alert: CRMAgentQueueBacklog
-        expr: crm_agent_jobs_pending > 20
+        expr: crm_agent_jobs_waiting + crm_agent_jobs_delayed > 20
         for: 10m
         labels: { severity: warning }
         annotations: { summary: "CRM Agent queue backlog is growing" }
@@ -31,16 +31,21 @@ groups:
         for: 1m
         labels: { severity: warning }
         annotations: { summary: "CRM has failed Agent jobs" }
+      - alert: CRMQueueOutboxBacklog
+        expr: crm_queue_outbox_pending > 20
+        for: 5m
+        labels: { severity: critical }
+        annotations: { summary: "CRM transactional queue outbox is not being published" }
       - alert: CRMNotificationDeliveryProblem
         expr: crm_notification_problems > 0
         for: 2m
         labels: { severity: warning }
         annotations: { summary: "CRM internal notifications require attention" }
-      - alert: CRMStorageLow
-        expr: crm_storage_free_bytes / crm_storage_total_bytes < 0.10
+      - alert: CRMPostgresDatabaseGrowth
+        expr: crm_postgres_database_size_bytes > 10737418240
         for: 5m
-        labels: { severity: critical }
-        annotations: { summary: "CRM database filesystem has less than 10% free space" }
+        labels: { severity: warning }
+        annotations: { summary: "CRM PostgreSQL database is larger than 10 GiB; check growth and retention" }
       - alert: CRMOrderAtRisk
         expr: crm_orders_at_risk > 0
         for: 15m

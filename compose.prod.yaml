@@ -1,4 +1,35 @@
 services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-tradeguard}
+      POSTGRES_USER: ${POSTGRES_USER:-crm_app}
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+    secrets: [postgres_password]
+    volumes:
+      - postgres_prod_data:/var/lib/postgresql/data
+      - ./deploy/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+    security_opt: ["no-new-privileges:true"]
+    networks: [crm_prod]
+  redis:
+    image: redis:8-alpine
+    command: ["sh", "-c", "exec redis-server --appendonly yes --appendfsync everysec --requirepass \"$$(cat /run/secrets/redis_password)\""]
+    secrets: [redis_password]
+    volumes: [redis_prod_data:/data]
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$$(cat /run/secrets/redis_password)\" ping | grep PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+    security_opt: ["no-new-privileges:true"]
+    networks: [crm_prod]
   api:
     build: .
     ports:
@@ -8,8 +39,8 @@ services:
       HOST: 0.0.0.0
       PORT: 8787
       WORKER_ENABLED: "false"
-      CRM_DB_PATH: /app/data/crm.db
-      CRM_BACKUP_DIR: /app/backups
+      DATABASE_URL_FILE: /run/secrets/database_url
+      REDIS_URL_FILE: /run/secrets/redis_url
       CRM_PUBLIC_URL: ${CRM_PUBLIC_URL:?Set an HTTPS CRM_PUBLIC_URL}
       CRM_TRUSTED_PROXY_CIDRS: ${CRM_TRUSTED_PROXY_CIDRS:-172.30.0.10/32}
       MODEL_BASE_URL: ${MODEL_BASE_URL:?Set MODEL_BASE_URL}
@@ -26,10 +57,10 @@ services:
       LANGFUSE_SECRET_KEY: ${LANGFUSE_SECRET_KEY:-}
       MEM0_SYNC_ENABLED: ${MEM0_SYNC_ENABLED:-false}
       MEM0_API_KEY: ${MEM0_API_KEY:-}
-    volumes:
-      - crm_prod_data:/app/data
-      - crm_prod_backups:/app/backups
-    secrets: [model_api_key, feishu_bot_webhook, feishu_bot_secret, metrics_token]
+    secrets: [database_url, redis_url, model_api_key, feishu_bot_webhook, feishu_bot_secret, metrics_token]
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
     networks: [crm_prod]
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8787/api/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
@@ -48,7 +79,8 @@ services:
     command: ["pnpm", "worker"]
     environment:
       APP_ENV: production
-      CRM_DB_PATH: /app/data/crm.db
+      DATABASE_URL_FILE: /run/secrets/database_url
+      REDIS_URL_FILE: /run/secrets/redis_url
       CRM_BACKUP_DIR: /app/backups
       CRM_PUBLIC_URL: ${CRM_PUBLIC_URL:?Set an HTTPS CRM_PUBLIC_URL}
       CRM_TRUSTED_PROXY_CIDRS: ${CRM_TRUSTED_PROXY_CIDRS:-172.30.0.10/32}
@@ -66,11 +98,20 @@ services:
       LANGFUSE_SECRET_KEY: ${LANGFUSE_SECRET_KEY:-}
       MEM0_SYNC_ENABLED: ${MEM0_SYNC_ENABLED:-false}
       MEM0_API_KEY: ${MEM0_API_KEY:-}
+      WORKER_CONCURRENCY: ${WORKER_CONCURRENCY:-4}
     volumes:
-      - crm_prod_data:/app/data
       - crm_prod_backups:/app/backups
-    secrets: [model_api_key, feishu_bot_webhook, feishu_bot_secret, metrics_token]
+    secrets: [database_url, redis_url, model_api_key, feishu_bot_webhook, feishu_bot_secret, metrics_token]
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
     networks: [crm_prod]
+    healthcheck:
+      test: ["CMD", "pnpm", "worker:ready"]
+      interval: 30s
+      timeout: 10s
+      start_period: 20s
+      retries: 3
     restart: unless-stopped
     logging:
       driver: json-file
@@ -125,7 +166,8 @@ services:
       - no-new-privileges:true
     networks: [crm_prod]
 volumes:
-  crm_prod_data:
+  postgres_prod_data:
+  redis_prod_data:
   crm_prod_backups:
   caddy_data:
   caddy_config:
@@ -133,6 +175,14 @@ volumes:
   prometheus_data:
   alertmanager_data:
 secrets:
+  postgres_password:
+    file: ${POSTGRES_PASSWORD_SECRET_FILE:?Set POSTGRES_PASSWORD_SECRET_FILE}
+  redis_password:
+    file: ${REDIS_PASSWORD_SECRET_FILE:?Set REDIS_PASSWORD_SECRET_FILE}
+  database_url:
+    file: ${DATABASE_URL_SECRET_FILE:?Set DATABASE_URL_SECRET_FILE}
+  redis_url:
+    file: ${REDIS_URL_SECRET_FILE:?Set REDIS_URL_SECRET_FILE}
   model_api_key:
     file: ${MODEL_API_KEY_SECRET_FILE:?Set MODEL_API_KEY_SECRET_FILE}
   feishu_bot_webhook:

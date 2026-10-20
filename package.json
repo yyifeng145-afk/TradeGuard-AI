@@ -17,23 +17,31 @@
     "bootstrap:admin": "node --env-file-if-exists=.env --import tsx server/bootstrap-admin.ts",
     "backup": "node --env-file-if-exists=.env --import tsx server/backup.ts",
     "restore:drill": "node --import tsx scripts/restore-drill.ts",
+    "platform:check": "node --env-file-if-exists=.env --import tsx scripts/check-platform.ts",
+    "worker:ready": "node --env-file-if-exists=.env --import tsx scripts/check-worker-ready.ts",
+    "migrate:sqlite-to-postgres": "node --env-file-if-exists=.env --import tsx scripts/sqlite-to-postgres.ts",
     "verify:external": "node --env-file-if-exists=.env.production --import tsx scripts/verify-external.ts",
     "verify:security": "node --env-file-if-exists=.env.validation --import tsx scripts/security-check.ts",
     "test:load": "node --env-file-if-exists=.env.validation --import tsx scripts/load-test.ts",
-    "test": "node --import tsx --test tests/*.test.ts"
+    "test": "node --import tsx --test tests/platform.integration.test.ts",
+    "test:integration": "node --env-file-if-exists=.env.test --import tsx --test tests/platform.integration.test.ts"
   },
   "dependencies": {
     "@mariozechner/pi-agent-core": "0.73.1",
     "@mariozechner/pi-ai": "0.73.1",
     "@modelcontextprotocol/sdk": "^1.25.0",
+    "bullmq": "^6.3.17",
     "fastify": "^5.6.0",
     "lucide-react": "^0.468.0",
+    "pg": "^8.23.1",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
+    "redis": "^6.3.0",
     "zod": "^4.1.0"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",
+    "@types/pg": "^8.23.1",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
     "@vitejs/plugin-react": "^5.0.0",
